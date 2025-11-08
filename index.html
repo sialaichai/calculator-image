@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TM Object Detector</title>
+    <!-- Load Tailwind CSS for easy styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Ensure the video feed is mirrored (like a selfie camera) */
+        #webcam {
+            transform: scaleX(-1);
+            -webkit-transform: scaleX(-1);
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white flex flex-col items-center justify-center min-h-screen p-4 font-sans">
+
+    <h1 class="text-3xl font-bold mb-4">Object Detector</h1>
+    <p class="text-gray-400 mb-6">Using Teachable Machine Model</p>
+
+    <!-- Button to start the webcam -->
+    <button id="start-button" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg text-xl shadow-lg transition-all">
+        Start Camera
+    </button>
+
+    <!-- The video element will show the webcam feed -->
+    <!-- 'playsinline' and 'muted' are crucial for mobile browsers -->
+    <video id="webcam" class="hidden rounded-lg shadow-xl mt-4" width="400" height="400" autoplay playsinline muted></video>
+    
+    <!-- This div will hold the prediction results -->
+    <div id="label-container" class="mt-6 text-lg w-full max-w-md space-y-2"></div>
+
+    <!-- Load TensorFlow.js and the Teachable Machine Image model -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+
+    <script type="text/javascript">
+        // URL to your Teachable Machine model
+        // This is the model you trained!
+        const MODEL_URL = "https://teachablemachine.withgoogle.com/models/g2nm_zlLp/";
+
+        let model, webcam, labelContainer, maxPredictions;
+
+        const startButton = document.getElementById("start-button");
+        const videoElement = document.getElementById("webcam");
+        const labelContainerElement = document.getElementById("label-container");
+
+        startButton.addEventListener("click", () => init());
+
+        // Load the image model and setup the webcam
+        async function init() {
+            startButton.classList.add("hidden"); // Hide the start button
+            
+            const modelURL = MODEL_URL + "model.json";
+            const metadataURL = MODEL_URL + "metadata.json";
+
+            // Load the model and metadata
+            try {
+                model = await tmImage.load(modelURL, metadataURL);
+                maxPredictions = model.getTotalClasses();
+
+                // Setup webcam
+                const flip = true; // whether to flip the webcam (true for mirrored view)
+                webcam = new tmImage.Webcam(400, 400, flip); // width, height, flip
+                await webcam.setup(); // request access to the webcam
+                
+                // Append the video element to the DOM
+                videoElement.classList.remove("hidden");
+                videoElement.srcObject = webcam.webcam.srcObject;
+                
+                // Create label containers
+                for (let i = 0; i < maxPredictions; i++) {
+                    // Create a div for each class
+                    const classDiv = document.createElement("div");
+                    classDiv.classList.add("flex", "justify-between", "items-center", "bg-gray-800", "p-3", "rounded-lg");
+                    
+                    const className = document.createElement("span");
+                    className.classList.add("text-gray-300");
+                    className.id = "class-name-" + i;
+                    
+                    const classPrediction = document.createElement("span");
+                    classPrediction.classList.add("font-bold", "text-white");
+                    classPrediction.id = "class-prediction-" + i;
+
+                    classDiv.appendChild(className);
+                    classDiv.appendChild(classPrediction);
+                    labelContainerElement.appendChild(classDiv);
+                }
+                
+                // Start the webcam and prediction loop
+                webcam.play();
+                window.requestAnimationFrame(loop);
+            } catch (e) {
+                console.error("Error initializing model or webcam:", e);
+                // Show a user-friendly error
+                labelContainerElement.innerHTML = `<div class="text-red-500 text-center">Failed to load model or start camera. Please check permissions and refresh.</div>`;
+                startButton.classList.remove("hidden"); // Show start button again
+            }
+        }
+
+        // Main prediction loop
+        async function loop() {
+            webcam.update(); // update the webcam frame
+            await predict();
+            window.requestAnimationFrame(loop);
+        }
+
+        // Run the webcam frame through the image model
+        async function predict() {
+            // predict can take in an image, video or canvas html element
+            const prediction = await model.predict(webcam.canvas);
+            
+            // Update the label text and progress bars
+            for (let i = 0; i < maxPredictions; i++) {
+                const classNameElement = document.getElementById("class-name-" + i);
+                const classPredictionElement = document.getElementById("class-prediction-" + i);
+                
+                const className = prediction[i].className;
+                const probability = prediction[i].probability.toFixed(2);
+                
+                classNameElement.innerHTML = className;
+                classPredictionElement.innerHTML = `${(probability * 100).toFixed(0)}%`;
+            }
+        }
+    </script>
+</body>
+</html>
