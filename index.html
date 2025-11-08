@@ -7,11 +7,13 @@
     <!-- Load Tailwind CSS for easy styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Ensure the video feed is mirrored (like a selfie camera) */
+        /* No longer mirroring the video, so this rule is removed */
+        /*
         #webcam {
             transform: scaleX(-1);
             -webkit-transform: scaleX(-1);
         }
+        */
     </style>
 </head>
 <body class="bg-gray-900 text-white flex flex-col items-center justify-center min-h-screen p-4 font-sans">
@@ -29,7 +31,7 @@
     <video id="webcam" class="hidden rounded-lg shadow-xl mt-4" width="400" height="400" autoplay playsinline muted></video>
     
     <!-- This div will hold the prediction results -->
-    <div id="label-container" class="mt-6 text-lg w-full max-w-md space-y-2"></div>
+    <div id="label-container" class="mt-6 text-2xl w-full max-w-md space-y-2 text-center"></div>
 
     <!-- Load TensorFlow.js and the Teachable Machine Image model -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
@@ -61,32 +63,30 @@
                 maxPredictions = model.getTotalClasses();
 
                 // Setup webcam
-                const flip = true; // whether to flip the webcam (true for mirrored view)
+                const flip = false; // Do not flip the rear camera
                 webcam = new tmImage.Webcam(400, 400, flip); // width, height, flip
-                await webcam.setup(); // request access to the webcam
+                
+                // Define constraints to use the rear camera ("environment")
+                const constraints = {
+                    video: {
+                        facingMode: "environment"
+                    }
+                };
+                await webcam.setup(constraints); // request access to the webcam with constraints
                 
                 // Append the video element to the DOM
                 videoElement.classList.remove("hidden");
                 videoElement.srcObject = webcam.webcam.srcObject;
                 
-                // Create label containers
+                // Create label containers -
+                // We will now just show a waiting message
+                labelContainerElement.innerHTML = `<div class="text-gray-500">Aim camera at an object...</div>`;
+                
+                /* // Removed the loop that creates all class labels
                 for (let i = 0; i < maxPredictions; i++) {
-                    // Create a div for each class
-                    const classDiv = document.createElement("div");
-                    classDiv.classList.add("flex", "justify-between", "items-center", "bg-gray-800", "p-3", "rounded-lg");
-                    
-                    const className = document.createElement("span");
-                    className.classList.add("text-gray-300");
-                    className.id = "class-name-" + i;
-                    
-                    const classPrediction = document.createElement("span");
-                    classPrediction.classList.add("font-bold", "text-white");
-                    classPrediction.id = "class-prediction-" + i;
-
-                    classDiv.appendChild(className);
-                    classDiv.appendChild(classPrediction);
-                    labelContainerElement.appendChild(classDiv);
+                    // ... code removed ...
                 }
+                */
                 
                 // Start the webcam and prediction loop
                 webcam.play();
@@ -111,17 +111,33 @@
             // predict can take in an image, video or canvas html element
             const prediction = await model.predict(webcam.canvas);
             
+            // Find the prediction with the highest probability
+            let topPrediction = prediction[0];
+            for (let i = 1; i < maxPredictions; i++) {
+                if (prediction[i].probability > topPrediction.probability) {
+                    topPrediction = prediction[i];
+                }
+            }
+
+            // Display the top prediction
+            const className = topPrediction.className;
+            const probability = (topPrediction.probability * 100).toFixed(0);
+
+            // Update the label container with the top class and its score
+            labelContainerElement.innerHTML = `
+                <div class="bg-gray-800 p-4 rounded-lg shadow-inner">
+                    <span class="text-3xl font-bold text-white">${className}</span>
+                    <span class="text-xl text-blue-400 ml-4">${probability}%</span>
+                </div>
+            `;
+
+            /*
+            // Removed loop that updated all classes
             // Update the label text and progress bars
             for (let i = 0; i < maxPredictions; i++) {
-                const classNameElement = document.getElementById("class-name-" + i);
-                const classPredictionElement = document.getElementById("class-prediction-" + i);
-                
-                const className = prediction[i].className;
-                const probability = prediction[i].probability.toFixed(2);
-                
-                classNameElement.innerHTML = className;
-                classPredictionElement.innerHTML = `${(probability * 100).toFixed(0)}%`;
+                // ... code removed ...
             }
+            */
         }
     </script>
 </body>
