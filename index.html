@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head> 
+<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TM Object Detector</title>
@@ -121,17 +121,23 @@
                 }
             }
 
-            // Display the top prediction
-            const className = topPrediction.className;
-            const probability = (topPrediction.probability * 100).toFixed(0);
+            // Check if the top prediction's probability is over 70%
+            if (topPrediction.probability > 0.7) {
+                // Display the top prediction
+                const className = topPrediction.className;
+                const probability = (topPrediction.probability * 100).toFixed(0);
 
-            // Update the label container with the top class and its score
-            labelContainerElement.innerHTML = `
-                <div class="bg-gray-800 p-4 rounded-lg shadow-inner">
-                    <span class="text-3xl font-bold text-white">${className}</span>
-                    <span class="text-xl text-blue-400 ml-4">${probability}%</span>
-                </div>
-            `;
+                // Update the label container with the top class and its score
+                labelContainerElement.innerHTML = `
+                    <div class="bg-gray-800 p-4 rounded-lg shadow-inner">
+                        <span class="text-3xl font-bold text-white">${className}</span>
+                        <span class="text-xl text-blue-400 ml-4">${probability}%</span>
+                    </div>
+                `;
+            } else {
+                // If no prediction is over 70%, show the waiting message
+                labelContainerElement.innerHTML = `<div class="text-gray-500">Aim camera at an object...</div>`;
+            }
         }
     </script>
 </body>
