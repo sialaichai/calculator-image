@@ -67,9 +67,11 @@
                 webcam = new tmImage.Webcam(400, 400, flip); // width, height, flip
                 
                 // Define constraints to use the rear camera ("environment")
+                // Use 'exact' to strongly prefer the rear camera
+                // This might fail if a rear camera is not found
                 const constraints = {
                     video: {
-                        facingMode: "environment"
+                        facingMode: { exact: "environment" }
                     }
                 };
                 await webcam.setup(constraints); // request access to the webcam with constraints
