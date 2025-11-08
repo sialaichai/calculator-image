@@ -42,10 +42,10 @@
         // This is the model you trained!
         const MODEL_URL = "https://teachablemachine.withgoogle.com/models/g2nm_zlLp/";
 
-        let model, webcam, labelContainer, maxPredictions;
+        let model, videoElement, labelContainer, maxPredictions;
 
         const startButton = document.getElementById("start-button");
-        const videoElement = document.getElementById("webcam");
+        videoElement = document.getElementById("webcam"); // Assign to global
         const labelContainerElement = document.getElementById("label-container");
 
         startButton.addEventListener("click", () => init());
@@ -62,48 +62,47 @@
                 model = await tmImage.load(modelURL, metadataURL);
                 maxPredictions = model.getTotalClasses();
 
-                // Setup webcam
-                const flip = false; // Do not flip the rear camera
-                webcam = new tmImage.Webcam(400, 400, flip); // width, height, flip
-                
                 // Define constraints to use the rear camera ("environment")
-                // Use 'exact' to strongly prefer the rear camera
-                // This might fail if a rear camera is not found
+                // Use 'exact' to strongly require the rear camera
                 const constraints = {
                     video: {
                         facingMode: { exact: "environment" }
                     }
                 };
-                await webcam.setup(constraints); // request access to the webcam with constraints
+
+                // Manually get the camera stream
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
                 
-                // Append the video element to the DOM
+                // Attach the stream to the video element
+                videoElement.srcObject = stream;
                 videoElement.classList.remove("hidden");
-                videoElement.srcObject = webcam.webcam.srcObject;
+                
+                // Wait for the video to start playing
+                await videoElement.play();
                 
                 // Create label containers -
                 // We will now just show a waiting message
                 labelContainerElement.innerHTML = `<div class="text-gray-500">Aim camera at an object...</div>`;
                 
-                /* // Removed the loop that creates all class labels
-                for (let i = 0; i < maxPredictions; i++) {
-                    // ... code removed ...
-                }
-                */
-                
-                // Start the webcam and prediction loop
-                webcam.play();
+                // Start the prediction loop
                 window.requestAnimationFrame(loop);
             } catch (e) {
                 console.error("Error initializing model or webcam:", e);
                 // Show a user-friendly error
-                labelContainerElement.innerHTML = `<div class="text-red-500 text-center">Failed to load model or start camera. Please check permissions and refresh.</div>`;
+                let errorMsg = "Failed to start camera.";
+                if (e.name === "OverconstrainedError" || e.name === "ConstraintNotSatisfiedError") {
+                    errorMsg = "Could not find a rear camera. Please use a different device or browser.";
+                } else if (e.name === "NotAllowedError") {
+                    errorMsg = "Camera permission denied. Please enable it in your browser settings.";
+                }
+                labelContainerElement.innerHTML = `<div class="text-red-500 text-center">${errorMsg}</div>`;
                 startButton.classList.remove("hidden"); // Show start button again
             }
         }
 
         // Main prediction loop
         async function loop() {
-            webcam.update(); // update the webcam frame
+            // We no longer call webcam.update()
             await predict();
             window.requestAnimationFrame(loop);
         }
@@ -111,7 +110,8 @@
         // Run the webcam frame through the image model
         async function predict() {
             // predict can take in an image, video or canvas html element
-            const prediction = await model.predict(webcam.canvas);
+            // We now pass the videoElement directly
+            const prediction = await model.predict(videoElement);
             
             // Find the prediction with the highest probability
             let topPrediction = prediction[0];
@@ -132,14 +132,6 @@
                     <span class="text-xl text-blue-400 ml-4">${probability}%</span>
                 </div>
             `;
-
-            /*
-            // Removed loop that updated all classes
-            // Update the label text and progress bars
-            for (let i = 0; i < maxPredictions; i++) {
-                // ... code removed ...
-            }
-            */
         }
     </script>
 </body>
