@@ -55,6 +55,7 @@
         const defaultLabelText = "Aim camera at Calculator.";
 
         let model, videoElement, labelContainerElement, maxPredictions;
+        let isPaused = false; // Add this variable to control pausing
 
         videoElement = document.getElementById("webcam");
         labelContainerElement = document.getElementById("label-container");
@@ -114,8 +115,10 @@
 
         // Main prediction loop
         async function loop() {
-            await predict();
-            window.requestAnimationFrame(loop);
+            if (!isPaused) { // Only predict if we are not paused
+                await predict();
+            }
+            window.requestAnimationFrame(loop); // Always keep the loop running
         }
 
         // Run the webcam image through the image model
@@ -141,10 +144,22 @@
                     <div class="text-green-500 font-bold">${top1.className}: ${prob1}%</div>
                     <div class="text-gray-400 font-medium">${top2.className}: ${prob2}%</div>
                 `;
-            } else {
-                // Otherwise, show the default instruction text
-                labelContainerElement.innerHTML = `<div class="text-gray-400">${defaultLabelText}</div>`;
-            }
+
+                // --- NEW PAUSE LOGIC ---
+                // 1. Pause the prediction loop
+                isPaused = true;
+
+                // 2. Set a timer to unpause and reset the label after 2 seconds (2000ms)
+                setTimeout(() => {
+                    isPaused = false;
+                    // Reset the label back to the default text
+                    labelContainerElement.innerHTML = `<div class="text-gray-400">${defaultLabelText}</div>`;
+                }, 2000);
+                // --- END NEW PAUSE LOGIC ---
+
+            } 
+            // We no longer need an 'else' block, because the label is reset
+            // by the timer. If no detection, the default text just stays on screen.
         }
     </script>
 
