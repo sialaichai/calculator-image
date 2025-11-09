@@ -1,136 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
-    <!-- Add these tags to prevent caching -->
+    <!-- These tags force the browser to reload index.html -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <!-- End of tags to prevent caching -->
-    
-    <title>TM Object Detector</title>
-    <!-- Load Tailwind CSS for easy styling -->
+
+    <title>SEAB Calculator Detector</title>
+    <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* No longer mirroring the video, so this rule is removed */
-        /*
+        /* Custom style to ensure video is centered and not flipped */
         #webcam {
-            transform: scaleX(-1);
-            -webkit-transform: scaleX(-1);
+            transform: scaleX(1);
         }
-        */
     </style>
 </head>
-<body class="bg-gray-900 text-white flex flex-col items-center justify-center min-h-screen p-4 font-sans">
+<body class="bg-gray-900 text-white min-h-screen flex flex-col items-center justify-center p-4 font-sans">
 
-    <h1 class="text-3xl font-bold mb-4">Object Detector</h1>
-    <p class="text-gray-400 mb-6">Using Teachable Machine Model</p>
-
-    <!-- Button to start the webcam (REMOVED) -->
-    <!--
-    <button id="start-button" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg text-xl shadow-lg transition-all">
-        Start Camera
-    </button>
-    -->
+    <!-- 1. Title Changed -->
+    <h1 class="text-3xl font-bold mb-4">SEAB Calculator Detector</h1>
+    
+    <!-- 3. Label container moved ABOVE video, with new instruction -->
+    <div id="label-container" class="mt-2 mb-4 text-2xl w-full max-w-md text-center text-gray-400">
+        Aim camera at Calculator.
+    </div>
 
     <!-- The video element will show the webcam feed -->
     <!-- 'playsinline' and 'muted' are crucial for mobile browsers -->
-    <video id="webcam" class="hidden rounded-lg shadow-xl mt-4" width="400" height="400" autoplay playsinline muted></video>
+    <video id="webcam" class="hidden rounded-lg shadow-xl" width="400" height="400" autoplay playsinline muted></video>
     
-    <!-- This div will hold the prediction results -->
-    <div id="label-container" class="mt-6 text-2xl w-full max-w-md space-y-2 text-center"></div>
-
-    <!-- Add the new button here -->
+    <!-- 4. "Switch to OCR" button with blue color -->
     <a href="https://sialaichai.github.io/calculator-scanner/"
-       class="mt-8 bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg transition-all">
+       class="mt-8 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg transition-all">
         Switch to OCR
     </a>
 
     <!-- Load TensorFlow.js and the Teachable Machine Image model -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
-
+    
     <script type="text/javascript">
         // URL to your Teachable Machine model
         // This is the model you trained!
         const MODEL_URL = "https://teachablemachine.withgoogle.com/models/g2nm_zlLp/";
-
-        let model, videoElement, labelContainer, maxPredictions;
-
-        // const startButton = document.getElementById("start-button"); // REMOVED
-        videoElement = document.getElementById("webcam"); // Assign to global
-        const labelContainerElement = document.getElementById("label-container");
-
-        // startButton.addEventListener("click", () => init()); // REMOVED
         
-        // ADDED: Attempt to auto-start the camera on page load.
-        // NOTE: This will likely be blocked by most mobile browsers
-        // until the user interacts with the page (which we've removed).
+        // Default text for the label
+        const defaultLabelText = "Aim camera at Calculator.";
+
+        let model, videoElement, labelContainerElement, maxPredictions;
+
+        videoElement = document.getElementById("webcam");
+        labelContainerElement = document.getElementById("label-container");
+
+        // Attempt to auto-start the camera on page load.
         window.addEventListener('load', init);
 
         // Load the image model and setup the webcam
         async function init() {
-            // startButton.classList.add("hidden"); // REMOVED - No button to hide
-            
             const modelURL = MODEL_URL + "model.json";
             const metadataURL = MODEL_URL + "metadata.json";
 
-            // Load the model and metadata
             try {
+                // Load the model and metadata
                 model = await tmImage.load(modelURL, metadataURL);
                 maxPredictions = model.getTotalClasses();
 
-                // Define constraints to use the rear camera ("environment")
-                // Use 'exact' to strongly require the rear camera
+                // Setup video element with "exact: environment"
                 const constraints = {
                     video: {
-                        facingMode: { exact: "environment" }
+                        facingMode: { exact: "environment" },
+                        width: 400,
+                        height: 400
                     }
                 };
 
-                // Manually get the camera stream
+                // Use navigator.mediaDevices.getUserMedia directly
                 const stream = await navigator.mediaDevices.getUserMedia(constraints);
-                
-                // Attach the stream to the video element
                 videoElement.srcObject = stream;
+                
+                // Wait for the video to be ready
+                await new Promise((resolve) => {
+                    videoElement.onloadedmetadata = () => {
+                        videoElement.play();
+                        resolve();
+                    };
+                });
+
+                // Show the video element
                 videoElement.classList.remove("hidden");
-                
-                // Wait for the video to start playing
-                await videoElement.play();
-                
-                // Create label containers -
-                // We will now just show a waiting message
-                labelContainerElement.innerHTML = `<div class="text-gray-500">Aim camera at an object...</div>`;
                 
                 // Start the prediction loop
                 window.requestAnimationFrame(loop);
+
             } catch (e) {
-                console.error("Error initializing model or webcam:", e);
-                // Show a user-friendly error
-                let errorMsg = "Failed to start camera.";
-                if (e.name === "OverconstrainedError" || e.name === "ConstraintNotSatisfiedError") {
-                    errorMsg = "Could not find a rear camera. Please use a different device or browser.";
+                // Handle errors
+                console.error(e);
+                let errorMsg = "Failed to load model or camera.";
+                if (e.name === "OverconstrainedError" || e.name === "NotFoundError") {
+                    errorMsg = "Could not find a rear (environment) camera.";
                 } else if (e.name === "NotAllowedError") {
                     errorMsg = "Camera permission denied. Please enable it in your browser settings.";
                 }
                 labelContainerElement.innerHTML = `<div class="text-red-500 text-center">${errorMsg}</div>`;
-                // startButton.classList.remove("hidden"); // REMOVED - No button to show
             }
         }
 
         // Main prediction loop
         async function loop() {
-            // We no longer call webcam.update()
             await predict();
             window.requestAnimationFrame(loop);
         }
 
-        // Run the webcam frame through the image model
+        // Run the webcam image through the image model
         async function predict() {
-            // predict can take in an image, video or canvas html element
-            // We now pass the videoElement directly
+            // Predict needs the video element
             const prediction = await model.predict(videoElement);
-            
+
             // Find the prediction with the highest probability
             let topPrediction = prediction[0];
             for (let i = 1; i < maxPredictions; i++) {
@@ -139,24 +128,17 @@
                 }
             }
 
-            // Check if the top prediction's probability is over 70%
-            if (topPrediction.probability > 0.7) {
-                // Display the top prediction
-                const className = topPrediction.className;
-                const probability = (topPrediction.probability * 100).toFixed(0);
-
-                // Update the label container with the top class and its score
-                labelContainerElement.innerHTML = `
-                    <div class="bg-gray-800 p-4 rounded-lg shadow-inner">
-                        <span class="text-3xl font-bold text-white">${className}</span>
-                        <span class="text-xl text-blue-400 ml-4">${probability}%</span>
-                    </div>
-                `;
+            // 3. & 4. Display logic updated
+            // Only show if accuracy > 80%, with green font
+            if (topPrediction.probability > 0.80) {
+                const probabilityPercent = (topPrediction.probability * 100).toFixed(0);
+                labelContainerElement.innerHTML = `<div class="text-green-500 font-bold">${topPrediction.className}: ${probabilityPercent}%</div>`;
             } else {
-                // If no prediction is over 90%, show the waiting message
-                labelContainerElement.innerHTML = `<div class="text-gray-500">Aim camera at an object...</div>`;
+                // Otherwise, show the default instruction text
+                labelContainerElement.innerHTML = `<div class="text-gray-400">${defaultLabelText}</div>`;
             }
         }
     </script>
+
 </body>
 </html>
