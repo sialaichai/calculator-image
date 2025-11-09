@@ -27,8 +27,8 @@
     <!-- New line color changed to green -->
     <p class="text-green-500 text-sm mb-4">Delete browsing data for latest update</p>
     
-    <!-- 3. Label container moved ABOVE video, with new instruction -->
-    <div id="label-container" class="mt-2 mb-4 text-2xl w-full max-w-md text-center text-gray-400">
+    <!-- 3. Label container moved ABOVE video, font size reduced -->
+    <div id="label-container" class="mt-2 mb-4 text-xl w-full max-w-md text-center text-gray-400">
         Aim camera at Calculator.
     </div>
 
@@ -123,19 +123,24 @@
             // Predict needs the video element
             const prediction = await model.predict(videoElement);
 
-            // Find the prediction with the highest probability
-            let topPrediction = prediction[0];
-            for (let i = 1; i < maxPredictions; i++) {
-                if (prediction[i].probability > topPrediction.probability) {
-                    topPrediction = prediction[i];
-                }
-            }
+            // Sort predictions by probability (highest first)
+            prediction.sort((a, b) => b.probability - a.probability);
+
+            // Get the top 2 predictions
+            const top1 = prediction[0];
+            const top2 = prediction[1];
 
             // 3. & 4. Display logic updated
-            // Only show if accuracy > 80%, with green font
-            if (topPrediction.probability > 0.80) {
-                const probabilityPercent = (topPrediction.probability * 100).toFixed(0);
-                labelContainerElement.innerHTML = `<div class="text-green-500 font-bold">${topPrediction.className}: ${probabilityPercent}%</div>`;
+            // Only show if top accuracy > 80%
+            if (top1.probability > 0.80) {
+                const prob1 = (top1.probability * 100).toFixed(0);
+                const prob2 = (top2.probability * 100).toFixed(0);
+                
+                // Show top 2 classes
+                labelContainerElement.innerHTML = `
+                    <div class="text-green-500 font-bold">${top1.className}: ${prob1}%</div>
+                    <div class="text-gray-400 font-medium">${top2.className}: ${prob2}%</div>
+                `;
             } else {
                 // Otherwise, show the default instruction text
                 labelContainerElement.innerHTML = `<div class="text-gray-400">${defaultLabelText}</div>`;
